@@ -1,0 +1,13 @@
+#!/usr/bin/scunit
+
+#Reset the card
+reset
+
+#Send GET CHALLENGE (Le=0)
+00 84 00 00
+<67 00
+
+#Send GET CHALLENGE (Le=8)
+00 84 00 00 08
+#xx xx xx xx xx xx xx xx 90 00
+

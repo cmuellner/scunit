@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+
+import getopt
+import sys
+
+import smartcard
+from smartcard.CardConnection import CardConnection
+from smartcard.CardRequest import CardRequest
+from smartcard.CardType import AnyCardType
+from smartcard.System import readers
+from smartcard.util import toHexString
+from smartcard.util import HexListToBinString
+
+scunit_version = "0.9.0"
+
+def line_can_be_skipped(line):
+    if line == "":
+        return True
+    if str.startswith(line, "//"):
+        return True
+    if str.startswith(line, "#"):
+        return True
+    if str.startswith(line, "/*"):
+        return True
+    return False
+
+def scunit(reader, protocol, inputfile):
+    readerlist = readers()
+    if len(readerlist) == 0:
+        print("Error: no reader found!")
+        return -1
+
+    if (reader != None):
+        for r in readers():
+            if str(r) == reader:
+                break
+        if str(r) != reader:
+            print("Error: reader not found!")
+            return -1
+        connection = r.createConnection()
+    else:
+        cardtype = AnyCardType()
+        cardrequest = CardRequest(timeout=0, cardType=cardtype)
+        cardservice = cardrequest.waitforcard()
+        connection = cardservice.connection
+
+    try:
+        if protocol != None:
+            connection.connect(protocol)
+        else:
+            connection.connect()
+    except smartcard.Exceptions.CardRequestTimeoutException as err:
+        print(err)
+        return -1
+    except smartcard.Exceptions.CardConnectionException as err:
+        print(err)
+        return -1
+
+    if inputfile != None:
+        infile = open(inputfile, "r")
+        echo = True
+    else:
+        infile = sys.stdin
+        echo = False
+
+    outfile = sys.stdout
+
+    for line in infile.readlines():
+        if (echo == True):
+            outfile.write(line)
+
+        line = str.strip(line)
+        line = line.lower()
+
+        if line_can_be_skipped(line) == True:
+            continue
+
+        if str.startswith(line, "reset"):
+            #TODO: reset card!
+            outfile.write("ATR: " + toHexString(connection.getATR()) + "\n")
+            continue
+
+        if str.startswith(line, "<"):
+            rapduexpstr = line[1:]
+            rapduexpstr = str.strip(rapduexpstr)
+            rapduexpstr = rapduexpstr.lower()
+            if rapduexpstr != rapdustr.lower():
+                outfile.write("Error: expected R-APDU does not match!")
+                return -1
+            continue
+
+        capdu = list(map(lambda x: int(x, 16), str.split(line)))
+        rapdu, sw1, sw2 = connection.transmit(capdu)
+        rapdu.append(sw1)
+        rapdu.append(sw2)
+        rapdustr = toHexString(rapdu)
+        outfile.write(rapdustr + "\n")
+
+
+if __name__ == "__main__":
+    def usage():
+        print("scunit " + scunit_version)
+        print("Usage: scunit [-h] [-r reader] [-p protocol] [file]")
+        print("          -h: this help")
+        print("   -r reader: specify to use the PCSC smart card reader named reader")
+        print("              By defaults the first one found is used so you")
+        print("              don't have to specify anything if you just have")
+        print("              one reader")
+        print(" -p protocol: protocol to use among T=0 and T=1.")
+        print("              Default is to let pcsc-lite choose the protocol")
+        print("        file: file containing APDUs")
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hp:r:")
+    except getopt.GetoptError as err:
+        print(err)
+        sys.exit(1)
+
+    reader = None
+    protocol = None
+    inputfile = None
+
+    for o, a in opts:
+        if o == "-h":
+            usage()
+            sys.exit()
+        elif o == "-p":
+            if a == "T=0":
+                protocol = CardConnection.T0_protocol
+            elif a == "T=1":
+                protocol = CardConnection.T1_protocol
+            else:
+                print("Error: Invalid protocol!")
+                sys.exit(1)
+        elif o == "-r":
+            reader = a
+        else:
+            print("Error: Unknown option!")
+            sys.exit(1)
+
+    if len(args) > 1:
+        print("Error: Too many inputfiles!")
+        sys.exit(1)
+    elif len(args) == 1:
+        inputfile = args[0]
+
+    ret = scunit(reader, protocol, inputfile)
+    sys.exit(ret)
