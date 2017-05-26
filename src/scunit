@@ -11,18 +11,18 @@ from smartcard.System import readers
 from smartcard.util import toHexString
 from smartcard.util import HexListToBinString
 
-scunit_version = "0.9.0"
+scunit_version = "0.9.1"
 
-def line_can_be_skipped(line):
-    if line == "":
-        return True
-    if str.startswith(line, "//"):
-        return True
-    if str.startswith(line, "#"):
-        return True
-    if str.startswith(line, "/*"):
-        return True
-    return False
+def matches(actualstr, expectedstr):
+    if len(actualstr) != len(expectedstr):
+        return False
+    for i, c in enumerate(expectedstr):
+        if c == 'x':
+            continue
+        else:
+            if c != actualstr[i]:
+                return False
+    return True
 
 def scunit(reader, protocol, inputfile):
     readerlist = readers()
@@ -72,7 +72,9 @@ def scunit(reader, protocol, inputfile):
         line = str.strip(line)
         line = line.lower()
 
-        if line_can_be_skipped(line) == True:
+        if line == "":
+            continue
+        if str.startswith(line, "#"):
             continue
 
         if str.startswith(line, "reset"):
@@ -84,7 +86,7 @@ def scunit(reader, protocol, inputfile):
             rapduexpstr = line[1:]
             rapduexpstr = str.strip(rapduexpstr)
             rapduexpstr = rapduexpstr.lower()
-            if rapduexpstr != rapdustr.lower():
+            if matches(rapdustr.lower(), rapduexpstr) == False:
                 outfile.write("Error: expected R-APDU does not match!")
                 return -1
             continue

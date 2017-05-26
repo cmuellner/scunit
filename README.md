@@ -39,7 +39,6 @@ scunit mytest.scunit
 
 ##Open features
  * More powerful expressions for APDUs (e.g. repeat operator)
- * More loose syntax for R-APDUs (e.g. x for don't care)
  * Generation of reports
  * Don't bailout when an error occurs
  * Finish implementation of 'reset' command
