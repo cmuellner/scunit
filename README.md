@@ -37,9 +37,15 @@ A simple invocation to execute a scunit file looks like this:
 scunit mytest.scunit
 ```
 
-##Open features
- * More powerful expressions for APDUs (e.g. repeat operator)
- * Generation of reports
+##Open feature list
+ * DONE: More loose syntax for R-APDUs (e.g. 'x' for don't care)
+ * More powerful expressions for APDUs:
+  * DONE: Multiply operator
+  * Multiline APDUs ('\' at end of line)
+  * Make spaces between bytes optional
+ * Generation of test summaries (M of N tests passed)
  * Don't bailout when an error occurs
  * Finish implementation of 'reset' command
  * Make card selection smarter (e.g. specify ATR matcher)
+ * Define grammar for test script language
+ * Add packaging/installation support scripts

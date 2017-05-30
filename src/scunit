@@ -13,16 +13,38 @@ from smartcard.util import HexListToBinString
 
 scunit_version = "0.9.1"
 
-def matches(actualstr, expectedstr):
-    if len(actualstr) != len(expectedstr):
+def matches(actstrlist, expstrlist):
+    if len(actstrlist) != len(expstrlist):
         return False
-    for i, c in enumerate(expectedstr):
-        if c == 'x':
-            continue
-        else:
-            if c != actualstr[i]:
+    for i, e in enumerate(expstrlist):
+        a = actstrlist[i]
+        if len(e) != len(a) or len(e) != 2:
+            return False #actually not mismatch but error
+        if e[0] != 'x':
+            if e[0] != a[0]:
+                return False
+        if e[1] != 'x':
+            if e[1] != a[1]:
                 return False
     return True
+
+#Convert into a list of 2-character strings representing a byte each
+def lineToStrList(line):
+    rawstrlist = str.split(line)
+    strlist = []
+    for r in rawstrlist:
+        if len(r) == 2:
+            strlist.append(r)
+        elif len(r) > 3 and r[2] == '*':
+            numstr = r[3:]
+            b = r[0:2]
+            num = int(numstr, 16)
+            bl = [b]*num
+            strlist.extend(bl)
+        else:
+            return None
+    return strlist
+
 
 def scunit(reader, protocol, inputfile):
     readerlist = readers()
@@ -83,20 +105,27 @@ def scunit(reader, protocol, inputfile):
             continue
 
         if str.startswith(line, "<"):
-            rapduexpstr = line[1:]
-            rapduexpstr = str.strip(rapduexpstr)
-            rapduexpstr = rapduexpstr.lower()
-            if matches(rapdustr.lower(), rapduexpstr) == False:
-                outfile.write("Error: expected R-APDU does not match!")
+            rapduexpline = line[1:]
+            rapduexpstrlist = lineToStrList(rapduexpline)
+            rapduactstrlist = rapdustr.lower().split()
+            if matches(rapduactstrlist, rapduexpstrlist) == False:
+                outfile.write("Error: expected R-APDU does not match!\n")
+                outfile.write("rapduexp: " + " ".join(rapduexpstrlist) + "\n")
+                outfile.write("rapduact: " + " ".join(rapduactstrlist) + "\n")
                 return -1
             continue
 
-        capdu = list(map(lambda x: int(x, 16), str.split(line)))
+        strlist = lineToStrList(line)
+        if strlist == None:
+            outfile.write("Error: parsing APDU failed\n")
+        #outfile.write("capdu: " + " ".join(strlist) + "\n")
+        capdu = list(map(lambda x: int(x, 16), strlist))
         rapdu, sw1, sw2 = connection.transmit(capdu)
         rapdu.append(sw1)
         rapdu.append(sw2)
         rapdustr = toHexString(rapdu)
-        outfile.write(rapdustr + "\n")
+        if (echo == False):
+            outfile.write(rapdustr + "\n")
 
 
 if __name__ == "__main__":
